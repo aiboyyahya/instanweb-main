@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Filament\Widgets;
+
+use App\Models\Transaction;
+use Filament\Widgets\ChartWidget;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
+
+class OrderChartWidget extends ChartWidget
+{
+    protected ?string $heading = 'Pesanan 7 Hari Terakhir';
+
+    protected ?string $description = 'Pesanan masuk per hari.';
+
+    protected static ?int $sort = 2;
+
+    protected int|string|array $columnSpan = 1;
+
+    protected string $color = 'primary';
+
+    protected function getData(): array
+    {
+        $data = [];
+        $orders = $this->orderQuery();
+
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $data[] = (clone $orders)->whereDate('created_at', $date->toDateString())->count();
+        }
+
+        return [
+            'datasets' => [
+                [
+                    'label' => 'Pesanan',
+                    'data' => $data,
+                    'backgroundColor' => 'rgba(30, 86, 252, 0.72)',
+                    'borderColor' => '#1e56fc',
+                    'borderWidth' => 1,
+                    'borderRadius' => 6,
+                    'maxBarThickness' => 34,
+                ],
+            ],
+            'labels' => collect(range(6, 0))
+                ->map(fn (int $daysAgo): string => Carbon::now()->subDays($daysAgo)->locale('id')->translatedFormat('d M'))
+                ->all(),
+        ];
+    }
+
+    /**
+     * Hanya hitung pesanan yang memuat produk milik toko yang sedang masuk.
+     */
+    private function orderQuery(): Builder
+    {
+        return Transaction::query()->when(
+            auth()->user()?->store?->id,
+            fn (Builder $query, int $storeId) => $query->whereHas(
+                'items.product',
+                fn (Builder $query) => $query->where('store_id', $storeId),
+            ),
+        );
+    }
+
+    protected function getType(): string
+    {
+        return 'bar';
+    }
+
+    protected function getOptions(): array
+    {
+        return [
+            'plugins' => [
+                'legend' => [
+                    'display' => false,
+                ],
+            ],
+        ];
+    }
+}
