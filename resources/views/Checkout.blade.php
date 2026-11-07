@@ -365,6 +365,7 @@
                         if (!data || currentId !== requestId) {
                             return;
                         }
+
                         if (!data.origin_configured) {
                             shippingEl.textContent = 'Dikonfirmasi penjual';
                             distanceEl.textContent = 'Toko belum mengatur titik lokasi';
